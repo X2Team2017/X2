@@ -332,7 +332,7 @@ font-family:'Open Sans,sans-serif';</string>
            <string notr="true">color: rgb(0, 0, 0);</string>
           </property>
           <property name="text">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:20px; font-weight:600; color: rgb(0, 0, 0);;&quot;&gt;KolschCoin Statistics&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:20px; font-weight:600; color: rgb(0, 0, 0);;&quot;&gt;TrollPayment Statistics&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
           </property>
          </widget>
         </item>
