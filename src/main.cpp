@@ -1043,6 +1043,11 @@ int64_t GetProofOfWorkReward(int64_t nFees)
         return nSubsidy + nFees;
       }   	   
 
+    else 
+      {
+        int64_t nSubsidy = 100 * COIN;
+        return nSubsidy + nFees;
+      }   		  
       
       
     if (fDebug && GetBoolArg("-printcreation"))
@@ -2237,8 +2242,10 @@ bool CBlock::AcceptBlock()
     CBlockIndex* pindexPrev = (*mi).second;
     int nHeight = pindexPrev->nHeight+1;
 
-    if (IsProofOfWork() && nHeight > LAST_POW_BLOCK)
-        return DoS(100, error("AcceptBlock() : reject proof-of-work at height %d", nHeight));
+	    // X2 will now be PoW/PoS hybrid permanently  
+        /* if (IsProofOfWork() && nHeight > LAST_POW_BLOCK)  
+        return DoS(100, error("AcceptBlock() : reject proof-of-work at height %d", nHeight));*/  
+
 
     // Check proof-of-work or proof-of-stake
     if (nBits != GetNextTargetRequired(pindexPrev, IsProofOfStake()))
