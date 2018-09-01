@@ -1,6 +1,6 @@
 TEMPLATE = app
-TARGET = X2-QT
-VERSION = 3.0.0
+TARGET = X2-S4C-Public-Codename-Hydra
+VERSION = 3.1.0
 INCLUDEPATH += src src/json src/qt
 QT += core gui network
 DEFINES += QT_GUI BOOST_THREAD_USE_LIB BOOST_SPIRIT_THREADSAFE
@@ -27,13 +27,13 @@ greaterThan(QT_MAJOR_VERSION, 4) {
 #    BDB_LIB_PATH, OPENSSL_INCLUDE_PATH and OPENSSL_LIB_PATH respectively
 
 
-BOOST_LIB_SUFFIX=-mgw48-mt-s-1_55
+BOOST_LIB_SUFFIX=-mgw49-mt-s-1_55
 BOOST_INCLUDE_PATH=C:/deps/boost_1_55_0
 BOOST_LIB_PATH=C:/deps/boost_1_55_0/stage/lib
 BDB_INCLUDE_PATH=C:/deps/db-4.8.30.NC/build_unix
 BDB_LIB_PATH=C:/deps/db-4.8.30.NC/build_unix
-OPENSSL_INCLUDE_PATH=C:/deps/openssl-1.0.1h/include
-OPENSSL_LIB_PATH=C:/deps/openssl-1.0.1h
+OPENSSL_INCLUDE_PATH=C:/deps/openssl-1.0.2k/include
+OPENSSL_LIB_PATH=C:/deps/openssl-1.0.2k
 MINIUPNPC_INCLUDE_PATH=C:/deps/
 MINIUPNPC_LIB_PATH=C:/deps/miniupnpc
 QRENCODE_INCLUDE_PATH=C:/deps/qrencode-3.4.3
@@ -251,6 +251,7 @@ HEADERS += src/qt/bitcoingui.h \
     src/bitcoinrpc.h \
     src/qt/overviewpage.h \
     src/qt/csvmodelwriter.h \
+	src/qt/multisenddialog.h \
     src/crypter.h \
     src/qt/sendcoinsentry.h \
     src/qt/qvalidatedlineedit.h \
@@ -348,6 +349,7 @@ SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/qt/notificator.cpp \
     src/qt/qtipcserver.cpp \
     src/qt/rpcconsole.cpp \
+	src/qt/multisenddialog.cpp \
     src/noui.cpp \
     src/kernel.cpp \
     src/scrypt-arm.S \
@@ -382,6 +384,7 @@ FORMS += \
     src/qt/forms/editaddressdialog.ui \
     src/qt/forms/transactiondescdialog.ui \
     src/qt/forms/overviewpage.ui \
+	src/qt/forms/multisenddialog.ui \
     src/qt/forms/sendcoinsentry.ui \
     src/qt/forms/askpassphrasedialog.ui \
     src/qt/forms/rpcconsole.ui \

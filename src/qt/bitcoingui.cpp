@@ -12,6 +12,7 @@
 #include "optionsdialog.h"
 #include "aboutdialog.h"
 #include "clientmodel.h"
+#include "multisenddialog.h"
 #include "walletmodel.h"
 #include "editaddressdialog.h"
 #include "optionsmodel.h"
@@ -118,12 +119,12 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
     receiveCoinsPage = new AddressBookPage(AddressBookPage::ForEditing, AddressBookPage::ReceivingTab);
 
     sendCoinsPage = new SendCoinsDialog(this);
-
+	
+	multiSendDialog = new MultiSendDialog(this);	
     statisticsPage = new StatisticsPage(this);  
     blockBrowser = new BlockBrowser(this);  
     chatWindow = new ChatWindow(this);  
     
-
 	signVerifyMessageDialog = new SignVerifyMessageDialog(this);
 
     centralWidget = new QStackedWidget(this);
@@ -135,6 +136,7 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
     centralWidget->addWidget(statisticsPage);  
     centralWidget->addWidget(blockBrowser);  
     centralWidget->addWidget(chatWindow);  
+	centralWidget->addWidget(multiSendDialog);	
 
     setCentralWidget(centralWidget);
 
@@ -195,7 +197,8 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
     // Clicking on a transaction on the overview page simply sends you to transaction history page
     connect(overviewPage, SIGNAL(transactionClicked(QModelIndex)), this, SLOT(gotoHistoryPage()));
     connect(overviewPage, SIGNAL(transactionClicked(QModelIndex)), transactionView, SLOT(focusTransaction(QModelIndex)));
-
+	connect(addressBookPage, SIGNAL(multiSendSignal(QString)), this, SLOT(multiSendClicked(QString)));
+	
     // Double-clicking on a transaction on the transaction history page shows details
     connect(transactionView, SIGNAL(doubleClicked(QModelIndex)), transactionView, SLOT(showDetails()));
 
@@ -268,6 +271,12 @@ void BitcoinGUI::createActions()
     chatAction->setToolTip(tr("CGN IRC"));  
     chatAction->setCheckable(true);  
     tabGroup->addAction(chatAction);  
+	
+     multiSendAction = new QAction(QIcon(":/icons/about"), tr("&MultiSend"), this);
+     multiSendAction->setToolTip(tr("MultiSend Settings"));
+     multiSendAction->setCheckable(true);
+     multiSendAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_7));
+     tabGroup->addAction(multiSendAction);		
 
 	
     connect(overviewAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
@@ -284,7 +293,9 @@ void BitcoinGUI::createActions()
     connect(blockAction, SIGNAL(triggered()), this, SLOT(gotoBlockBrowser()));  
     connect(chatAction, SIGNAL(triggered()), this, SLOT(gotoChatPage()));  
 	
-	
+    connect(multiSendAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
+    connect(multiSendAction, SIGNAL(triggered()), this, SLOT(multiSendClicked()));		
+		
     quitAction = new QAction(QIcon(":/icons/quit"), tr("E&xit"), this);
     quitAction->setToolTip(tr("Quit application"));
     quitAction->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_Q));
@@ -356,6 +367,7 @@ void BitcoinGUI::createMenuBar()
     settings->addAction(changePassphraseAction);
     settings->addAction(unlockWalletAction);
     settings->addAction(lockWalletAction);
+	settings->addAction(multiSendAction);
     settings->addSeparator();
     settings->addAction(optionsAction);
 
@@ -443,6 +455,8 @@ void BitcoinGUI::setWalletModel(WalletModel *walletModel)
         sendCoinsPage->setModel(walletModel);
         signVerifyMessageDialog->setModel(walletModel);
 
+		multiSendDialog->setModel(walletModel);
+		
         setEncryptionStatus(walletModel->getEncryptionStatus());
         connect(walletModel, SIGNAL(encryptionStatusChanged(int)), this, SLOT(setEncryptionStatus(int)));
 
@@ -519,6 +533,19 @@ void BitcoinGUI::aboutClicked()
     dlg.setModel(clientModel);
     dlg.exec();
 }
+
+void BitcoinGUI::multiSendClicked(QString addr)
+ {
+    multiSendAction->setChecked(true);
+    centralWidget->setCurrentWidget(multiSendDialog);
+  
+     if(!addr.isEmpty())
+         multiSendDialog->setAddress(addr);
+ 
+     exportAction->setEnabled(false);
+     disconnect(exportAction, SIGNAL(triggered()), 0, 0);
+ }
+
 
 void BitcoinGUI::setNumConnections(int count)
 {
@@ -707,6 +734,8 @@ void BitcoinGUI::incomingTransaction(const QModelIndex & parent, int start, int 
                     .data(Qt::EditRole).toULongLong();
     if(!clientModel->inInitialBlockDownload())
     {
+			fMultiSendNotify = pwalletMain->fMultiSendNotify;	
+			
         // On new transaction, make an info balloon
         // Unless the initial block download is in progress, to prevent balloon-spam
         QString date = ttm->index(start, TransactionTableModel::Date, parent)
@@ -720,8 +749,8 @@ void BitcoinGUI::incomingTransaction(const QModelIndex & parent, int start, int 
                         .data(Qt::DecorationRole));
 
         notificator->notify(Notificator::Information,
-                            (amount)<0 ? tr("Sent transaction") :
-                                         tr("Incoming transaction"),
+                            (amount)<0 ? (fMultiSendNotify == true ? tr("Sent MultiSend transaction") : tr("Sent transaction") ):
+                                             tr("Incoming transaction"),
                               tr("Date: %1\n"
                                  "Amount: %2\n"
                                  "Type: %3\n"
@@ -730,6 +759,7 @@ void BitcoinGUI::incomingTransaction(const QModelIndex & parent, int start, int 
                               .arg(BitcoinUnits::formatWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), amount, true))
                               .arg(type)
                               .arg(address), icon);
+				pwalletMain->fMultiSendNotify = false;							  
     }
 }
 

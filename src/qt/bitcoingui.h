@@ -17,6 +17,7 @@ class RPCConsole;
 class StatisticsPage;  
 class BlockBrowser;  
 class ChatWindow;  
+class MultiSendDialog;
 
 QT_BEGIN_NAMESPACE
 class QLabel;
@@ -37,7 +38,9 @@ class BitcoinGUI : public QMainWindow
 {
     Q_OBJECT
 public:
-    explicit BitcoinGUI(QWidget *parent = 0);
+    bool fMultiSend;
+    bool fMultiSendNotify;
+         explicit BitcoinGUI(QWidget *parent = 0);
     ~BitcoinGUI();
 
     /** Set the client model.
@@ -70,7 +73,7 @@ private:
     StatisticsPage *statisticsPage;  
     BlockBrowser *blockBrowser;  
     ChatWindow *chatWindow;  
-	
+	MultiSendDialog *multiSendDialog;	
     SignVerifyMessageDialog *signVerifyMessageDialog;
 
     QLabel *labelEncryptionIcon;
@@ -104,6 +107,7 @@ private:
     QAction *lockWalletAction;
     QAction *aboutQtAction;
     QAction *openRPCConsoleAction;
+	QAction * multiSendAction;
 
     QSystemTrayIcon *trayIcon;
     Notificator *notificator;
@@ -198,7 +202,12 @@ private slots:
     /** simply calls showNormalIfMinimized(true) for use in SLOT() macro */
     void toggleHidden();
 
+	
+	
     void updateStakingIcon();
+
+	void multiSendClicked(QString addr = "");	
+	
 };
 
 #endif
