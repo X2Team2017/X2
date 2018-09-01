@@ -1,5 +1,5 @@
 TEMPLATE = app
-TARGET = X2-S4C-Public-Codename-Hydra
+TARGET = X2-S4C-x-Public-Codename-Hydra
 VERSION = 3.1.0
 INCLUDEPATH += src src/json src/qt
 QT += core gui network
