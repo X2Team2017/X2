@@ -1,6 +1,6 @@
 TEMPLATE = app
-TARGET = X2-S4C-x-Public-Codename-Hydra
-VERSION = 3.1.0
+TARGET = X2-Public-Codename-Hydra
+VERSION = 3.2.0
 INCLUDEPATH += src src/json src/qt
 QT += core gui network
 DEFINES += QT_GUI BOOST_THREAD_USE_LIB BOOST_SPIRIT_THREADSAFE
@@ -286,7 +286,8 @@ HEADERS += src/qt/bitcoingui.h \
     src/qt/blockbrowser.h \
     src/qt/serveur.h \
     src/qt/chatwindow.h \
-    src/qt/statisticspage.h
+    src/qt/statisticspage.h \
+	src/qt/stakereportdialog.h
 
 SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/qt/transactiontablemodel.cpp \
@@ -350,6 +351,7 @@ SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/qt/qtipcserver.cpp \
     src/qt/rpcconsole.cpp \
 	src/qt/multisenddialog.cpp \
+	src/qt/stakereportdialog.cpp \
     src/noui.cpp \
     src/kernel.cpp \
     src/scrypt-arm.S \
@@ -388,10 +390,11 @@ FORMS += \
     src/qt/forms/sendcoinsentry.ui \
     src/qt/forms/askpassphrasedialog.ui \
     src/qt/forms/rpcconsole.ui \
-        src/qt/forms/optionsdialog.ui \
+    src/qt/forms/optionsdialog.ui \
     src/qt/forms/blockbrowser.ui \
     src/qt/forms/chatwindow.ui \
-    src/qt/forms/statisticspage.ui
+    src/qt/forms/statisticspage.ui \
+	src/qt/forms/stakereportdialog.ui
 
 contains(USE_QRCODE, 1) {
 HEADERS += src/qt/qrcodedialog.h
