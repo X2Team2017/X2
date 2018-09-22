@@ -2,12 +2,16 @@
 // Copyright (c) 2009-2012 The Bitcoin developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
+// September 2018  StakeReport added, any Questions ? feel free to ask 
+// Twitter/Tillkoeln  .. Youtube/Tillkoeln ... Bitcointalk/Tillkoeln
+//  https://yobit.net/en/pm/create/Tillkoeln
 
 #include "wallet.h"
 #include "walletdb.h"
 #include "bitcoinrpc.h"
 #include "init.h"
 #include "base58.h"
+#include <boost/lexical_cast.hpp>
 
 using namespace json_spirit;
 using namespace std;
@@ -1773,4 +1777,382 @@ Value makekeypair(const Array& params, bool fHelp)
     result.push_back(Pair("PrivateKey", HexStr<CPrivKey::iterator>(vchPrivKey.begin(), vchPrivKey.end())));
     result.push_back(Pair("PublicKey", HexStr(key.GetPubKey().Raw())));
     return result;
+}
+
+//presstab HyperStake
+Array printMultiSend()
+{
+    Array ret;
+    Object act;
+    act.push_back(Pair("MultiSend Activated?", pwalletMain->fMultiSend));
+    ret.push_back(act);
+    if(pwalletMain->vDisabledAddresses.size() >= 1)
+    {
+        Object disAdd;
+        for(unsigned int i = 0; i < pwalletMain->vDisabledAddresses.size(); i++)
+        {
+            disAdd.push_back(Pair("Disabled From Sending", pwalletMain->vDisabledAddresses[i]));
+        }
+        ret.push_back(disAdd);
+    }
+    
+    ret.push_back("MultiSend Addresses to Send To:");
+    Object vMS;
+    for(unsigned int i = 0; i < pwalletMain->vMultiSend.size(); i++)
+    {
+        vMS.push_back(Pair("Address " + boost::lexical_cast<std::string>(i), pwalletMain->vMultiSend[i].first));
+        vMS.push_back(Pair("Percent", pwalletMain->vMultiSend[i].second));
+    }
+    ret.push_back(vMS);
+    return ret;
+}
+
+//presstab HyperStake
+Array printAddresses()
+{
+    std::vector<COutput> vCoins;
+    pwalletMain->AvailableCoins(vCoins);
+    std::map<std::string, double> mapAddresses;
+    
+    BOOST_FOREACH(const COutput& out, vCoins)
+    {
+        CTxDestination utxoAddress;
+        ExtractDestination(out.tx->vout[out.i].scriptPubKey, utxoAddress);
+        std::string strAdd = CBitcoinAddress(utxoAddress).ToString();
+
+        if(mapAddresses.find(strAdd) == mapAddresses.end()) //if strAdd is not already part of the map
+            mapAddresses[strAdd] = (double)out.tx->vout[out.i].nValue / (double)COIN;
+        else
+            mapAddresses[strAdd] += (double)out.tx->vout[out.i].nValue / (double)COIN;
+    }
+    Array ret;
+    for (map<std::string, double>::const_iterator it = mapAddresses.begin(); it != mapAddresses.end(); ++it)
+    {
+        Object obj;
+        const std::string* strAdd = &(*it).first;
+        const double* nBalance = &(*it).second;
+        obj.push_back(Pair("Address ", *strAdd));
+        obj.push_back(Pair("Balance ", *nBalance));
+        ret.push_back(obj);
+    }
+    return ret;
+}
+
+//presstab HyperStake
+unsigned int sumMultiSend()
+{
+    unsigned int sum = 0;
+    for(unsigned int i = 0; i < pwalletMain->vMultiSend.size(); i++)
+        sum += pwalletMain->vMultiSend[i].second;
+    
+    return sum;
+}
+
+// presstab HyperStake
+Value multisend(const Array &params, bool fHelp)
+{
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    bool fFileBacked;
+    
+    //MultiSend Commands
+    if(params.size() == 1)
+    {
+        string strCommand = params[0].get_str();
+        Object ret;
+        if(strCommand == "print")
+        {
+            return printMultiSend();
+        }
+        else if(strCommand == "printaddress" || strCommand == "printaddresses")
+        {
+            return printAddresses();
+        }
+        else if(strCommand == "clear")
+        {
+            LOCK(pwalletMain->cs_wallet);
+            {
+                fFileBacked = pwalletMain->fFileBacked;
+                string strRet;
+                if(fFileBacked)
+                {
+                    if(walletdb.EraseMultiSend(pwalletMain->vMultiSend))                        
+                        strRet += "erased MultiSend vector from database & ";
+                    
+                }
+                pwalletMain->vMultiSend.clear();
+                pwalletMain->fMultiSend = false;
+                strRet += "cleared MultiSend vector from RAM";
+                return strRet;
+            }
+        }
+        else if (strCommand == "enable" || strCommand == "activate" )
+        {
+            if(pwalletMain->vMultiSend.size() < 1)
+                return "Unable to activate MultiSend, check MultiSend vector";
+            if(CBitcoinAddress(pwalletMain->vMultiSend[0].first).IsValid())
+            {
+                pwalletMain->fMultiSend = true;
+                if(!walletdb.WriteMSettings(true, pwalletMain->nLastMultiSendHeight))
+                    return "MultiSend activated but writing settings to DB failed";
+                else
+                return "MultiSend activated";
+            }
+            else
+                return "Unable to activate MultiSend, check MultiSend vector";
+        }
+        else if (strCommand == "disable" || strCommand == "deactivate" )
+        {
+            pwalletMain->fMultiSend = false;
+            if(!walletdb.WriteMSettings(false, pwalletMain->nLastMultiSendHeight))
+                    return "MultiSend deactivated but writing settings to DB failed";
+            return "MultiSend deactivated";
+        }
+        else if(strCommand == "enableall")
+        {
+            if(!walletdb.EraseMSDisabledAddresses(pwalletMain->vDisabledAddresses))
+                return "failed to clear old vector from walletDB";
+            else
+            {
+                pwalletMain->vDisabledAddresses.clear();
+                return "all addresses will now send MultiSend transactions";
+            }
+        }
+    }
+    if(params.size() == 2 && params[0].get_str() == "delete")
+    {
+        int del = boost::lexical_cast<int>(params[1].get_str());
+        if(!walletdb.EraseMultiSend(pwalletMain->vMultiSend))
+           return "failed to delete old MultiSend vector from database";
+        
+        pwalletMain->vMultiSend.erase(pwalletMain->vMultiSend.begin() + del);
+        
+        if(!walletdb.WriteMultiSend(pwalletMain->vMultiSend))
+            return "walletdb WriteMultiSend failed!";
+        return printMultiSend();
+    }
+    if(params.size() == 2 && params[0].get_str() == "disable")
+    {
+        std::string disAddress = params[1].get_str();
+        if(!CBitcoinAddress(disAddress).IsValid())
+            return "address you want to disable is not valid";
+        else
+        {
+            pwalletMain->vDisabledAddresses.push_back(disAddress);
+            if(!walletdb.EraseMSDisabledAddresses(pwalletMain->vDisabledAddresses))
+                return "disabled address from sending, but failed to clear old vector from walletDB";
+            if(!walletdb.WriteMSDisabledAddresses(pwalletMain->vDisabledAddresses))
+                return "disabled address from sending, but failed to store it to walletDB";
+            else
+                return "disabled address from sending MultiSend transactions";
+        }
+        
+    }
+    //if no commands are used
+    if (fHelp || params.size() != 2)
+        throw runtime_error(
+            "multisend <command>\n"
+            "****************************************************************\n"
+			"Presstabs Multisend, added by Tillkoeln\n"
+			"Github.com/Tillkoeln\n"			
+			"Twitter.com/Tillkoeln\n"			
+			"https://www.youtube.com/channel/UC-x4N9JU3Aoi8RyBlPQc75Q\n"									
+            "WHAT IS MULTISEND?\n"
+            "MultiSend is a rebuild of what used to be called Stake For Charity (s4c)\n"
+            "MultiSend allows a user to automatically send a percent of their stake reward to as many addresses as you would like\n"
+            "The MultiSend transaction is sent when the staked coins mature (30 confirmations)\n"
+            "The only current restriction is that you cannot choose to send more than 100% of your stake using MultiSend\n"
+            "****************************************************************\n"
+            "MULTISEND COMMANDS (usage: multisend <command>)\n"
+            "   print - displays the current MultiSend vector \n"
+            "   clear - deletes the current MultiSend vector \n"
+            "   enable/activate - activates the current MultiSend vector \n"
+            "   disable/deactivate - disables the current MultiSend vector \n"
+            "   delete <Address #> - deletes an address from the MultiSend vector \n"
+            "   disable <address> - prevents a specific address from sending MultiSend transactions\n"
+            "   enableall - enables all addresses to be eligible to send MultiSend transactions\n"
+            
+            "****************************************************************\n"
+            "TO CREATE OR ADD TO THE MULTISEND VECTOR:\n"
+            "multisend <Address> <percent>\n"
+            "This will add a new address to the MultiSend vector\n"
+            "Percent is a whole number 1 to 100.\n"
+            "****************************************************************\n"
+            );
+    
+    //if the user is entering a new MultiSend item
+    string strAddress = params[0].get_str();
+    CBitcoinAddress address(strAddress);
+    if (!address.IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid  address");
+    if (boost::lexical_cast<int>(params[1].get_str()) < 0)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, expected valid percentage");
+    if (pwalletMain->IsLocked())
+        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Please enter the wallet passphrase with walletpassphrase first.");
+
+    
+    unsigned int nPercent = boost::lexical_cast<unsigned int>(params[1].get_str());
+    
+    LOCK(pwalletMain->cs_wallet);
+    {
+        fFileBacked = pwalletMain->fFileBacked;
+        //Error if 0 is entered
+        if(nPercent == 0)
+        {
+            return "Sending 0% of stake is not valid";
+        }
+        
+        //MultiSend can only send 100% of your stake
+        if (nPercent + sumMultiSend() > 100)
+            return "Failed to add to MultiSend vector, the sum of your MultiSend is greater than 100%";
+        
+        for(unsigned int i = 0; i < pwalletMain->vMultiSend.size(); i++)
+        {
+            if(pwalletMain->vMultiSend[i].first == strAddress)
+                return "Failed to add to MultiSend vector, cannot use the same address twice";
+        }
+            
+        if(fFileBacked)
+            walletdb.EraseMultiSend(pwalletMain->vMultiSend);
+              
+        std::pair<std::string, int> newMultiSend;
+        newMultiSend.first = strAddress;
+        newMultiSend.second = nPercent;
+        pwalletMain->vMultiSend.push_back(newMultiSend);
+        
+        if(fFileBacked)
+        {   
+            if(!walletdb.WriteMultiSend(pwalletMain->vMultiSend))
+                return "walletdb WriteMultiSend failed!";
+        }
+    }
+    return printMultiSend();
+}
+ // getstakereport
+struct StakePeriodRange_T {
+    int64_t Start;
+    int64_t End;
+    int64_t Total;
+    int Count;
+    string Name;
+};
+ typedef vector<StakePeriodRange_T> vStakePeriodRange_T;
+     // **em52: Get total coins staked on given period
+    // inspired from CWallet::GetStake()
+    // Parameter aRange = Vector with given limit date, and result
+    // return int =  Number of Wallet's elements analyzed
+int GetsStakeSubTotal(vStakePeriodRange_T& aRange)
+{
+    int nElement = 0;
+    int64_t nAmount = 0;
+     const CWalletTx* pcoin;
+     vStakePeriodRange_T::iterator vIt;
+     // scan the entire wallet transactions
+    for (map<uint256, CWalletTx>::const_iterator it = pwalletMain->mapWallet.begin();
+         it != pwalletMain->mapWallet.end();
+         ++it)
+    {
+        pcoin = &(*it).second;
+         // skip orphan block or immature
+        if  ((!pcoin->GetDepthInMainChain()) || (pcoin->GetBlocksToMaturity()>0))
+            continue;
+         // skip transaction other than POS block
+        if (!(pcoin->IsCoinStake()))
+            continue;
+         nElement++;
+         // use the cached amount if available
+        if (pcoin->fCreditCached && pcoin->fDebitCached)
+            nAmount = pcoin->nCreditCached - pcoin->nDebitCached;
+        else
+            nAmount = pcoin->GetCredit() - pcoin->GetDebit();
+         // scan the range
+        for(vIt=aRange.begin(); vIt != aRange.end(); vIt++)
+        {
+            if (pcoin->nTime >= vIt->Start)
+            {
+                if (! vIt->End)
+                {   // Manage Special case
+                    vIt->Start = pcoin->nTime;
+                    vIt->Total = nAmount;
+                }
+                else if (pcoin->nTime <= vIt->End)
+                {
+                    vIt->Count++;
+                    vIt->Total += nAmount;
+                }
+            }
+        }
+     }
+    return nElement;
+}
+     // prepare range for stake report
+vStakePeriodRange_T PrepareRangeForStakeReport()
+{
+    vStakePeriodRange_T aRange;
+    StakePeriodRange_T x;
+     struct tm Loc_MidNight;
+     int64_t n1Hour = 60*60;
+    int64_t n1Day = 24 * n1Hour;
+     int64_t nToday = GetTime();
+    time_t CurTime = nToday;
+     localtime_r(&CurTime, &Loc_MidNight);
+    Loc_MidNight.tm_hour = 0;
+    Loc_MidNight.tm_min = 0;
+    Loc_MidNight.tm_sec = 0;  // set midnight
+     x.Start = mktime(&Loc_MidNight);
+    x.End   = nToday;
+    x.Count = 0;
+    x.Total = 0;
+     // prepare last single 30 day Range
+    for(int i=0; i<30; i++)
+    {
+        x.Name = DateTimeStrFormat(x.Start);
+         aRange.push_back(x);
+         x.End    = x.Start - 1;
+        x.Start -= n1Day;
+    }
+     // prepare subtotal range of last 24H, 1 week, 30 days, 1 years
+    int GroupDays[4][2] = { {1 ,0}, {7 ,0 }, {30, 0}, {365, 0}};
+    string sGroupName[] = {"24H", "7 Days", "30 Days", "365 Days" };
+     nToday = GetTime();
+     for(int i=0; i<4; i++)
+    {
+        x.Start = nToday - GroupDays[i][0] * n1Day;
+        x.End   = nToday - GroupDays[i][1] * n1Day;
+        x.Name = "Last " + sGroupName[i];
+         aRange.push_back(x);
+    }
+     // Special case. not a subtotal, but last stake
+    x.End  = 0;
+    x.Start = 0;
+    x.Name = "Latest Stake";
+    aRange.push_back(x);
+ return aRange;
+}
+     // getstakereport: return SubTotal of the staked coin in last 24H, 7 days, etc.. of all owns address
+Value getstakereport(const Array& params, bool fHelp)
+{
+    if ((params.size()>0) || (fHelp))
+        throw runtime_error(
+            "getstakereport\n"
+            "List last single 30 day stake subtotal and last 24h, 7, 30, 365 day subtotal.\n");
+     vStakePeriodRange_T aRange = PrepareRangeForStakeReport();
+     // get subtotal calc
+    int64_t nTook = GetTimeMillis();
+    int nItemCounted = GetsStakeSubTotal(aRange);
+    nTook = GetTimeMillis() - nTook;
+     Object result;
+     vStakePeriodRange_T::iterator vIt;
+     // report it
+    for(vIt = aRange.begin(); vIt != aRange.end(); vIt++)
+    {
+        result.push_back(Pair(vIt->Name, FormatMoney(vIt->Total).c_str()));
+    }
+     vIt--;
+    result.push_back(Pair("Latest Time",
+       vIt->Start ? DateTimeStrFormat(vIt->Start).c_str() :
+       "Never"));
+     // report element counted / time took
+    result.push_back(Pair("Stake counted", nItemCounted));
+    result.push_back(Pair("time took (ms)",  nTook ));
+     return  result;
 }
